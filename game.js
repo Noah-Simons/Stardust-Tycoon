@@ -158,7 +158,6 @@ const el = {
 const shopRefs = {};
 
 function buildShop() {
-  el.shopList.innerHTML = document.createElement("div"); // ensure container
   el.shopList.innerHTML = "";
   for (const up of UPGRADES) {
     const item = document.createElement("div");
