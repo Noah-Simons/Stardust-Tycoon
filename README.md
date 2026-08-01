@@ -9,7 +9,7 @@ An idle/clicker game where numbers go up forever — mine stardust, automate gal
 ## Features
 
 - ⛏️ **Click mining** — tap to earn stardust, with a satisfying pop and floating "+N".
-- 🤖 **18 upgrades** across three tracks: auto-miners (Drone → Singularity), click-power tiers (Fingers → Mecha Fingers), and production multipliers (Amplifiers).
+- 🤖 **17 upgrades** across three tracks: auto-miners (Drone → Singularity), click-power tiers (Fingers → Mecha Fingers), and production multipliers (Amplifiers).
 - 🔁 **Prestige system** — reset at 10M ✦ for a permanent +10% production bonus per reset.
 - 🏆 **10 achievements** — milestone rewards that pay out bonus stardust.
 - 💤 **Offline progress** — earn up to 8 hours of production while you're away.
