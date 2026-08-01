@@ -456,14 +456,24 @@ function applyOfflineProgress() {
   const last = Number(localStorage.getItem("st_lastSeen") || 0);
   const now = Date.now();
   if (last) {
-    const secs = Math.min((now - last) / 1000, 8 * 3600);
+    // Floor elapsed time at 0 so a clock rollback (NTP correction, manual
+    // clock change, DST quirk) is a no-op instead of silently zeroing the
+    // payout. The 8h cap still applies. `gain > 0` below stays as
+    // defense-in-depth.
+    const secs = Math.max(0, Math.min((now - last) / 1000, 8 * 3600));
     const gain = cps() * secs;
     if (gain > 0) {
       state.stardust += gain;
       state.totalMined += gain;
     }
+    // Only advance the timestamp when the clock moved forward (or when it is
+    // absurdly in the future, i.e. corrupted). Writing a rolled-back `now`
+    // back here would poison st_lastSeen and pay out an accidental 8h reward
+    // on the next boot.
+    if (now > last || now < last - 8 * 3600 * 1000) localStorage.setItem("st_lastSeen", now);
+  } else {
+    localStorage.setItem("st_lastSeen", now);
   }
-  localStorage.setItem("st_lastSeen", now);
 }
 
 // ===== Boot =====
