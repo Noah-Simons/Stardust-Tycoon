@@ -46,6 +46,20 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) first.
 
 See the [open issues](https://github.com/Noah-Simons/Stardust-Tycoon/issues) for planned work — balance fixes, a closed-form Max-buy formula, big-number support, and more.
 
+## Cloud saves
+
+Sign in with Google to sync your save across devices. It's **optional** — the game is fully playable signed out, and your progress is saved in your browser either way.
+
+When two devices disagree, the save with the higher lifetime **total mined** wins, and you're always asked before anything is overwritten.
+
+## Privacy
+
+If you sign in, this game stores your Google account ID, display name, and your save data (stardust, upgrades, prestige, achievements) in Google Firebase. Nothing else, and it's never shared or sold.
+
+This site also uses **Google Analytics**, which collects anonymous usage data (page views, approximate location, browser and device type) from **all visitors**, whether signed in or not.
+
+To delete your cloud save, sign in and hit **Reset save**, then sign out — or open an issue and I'll remove it.
+
 ## License
 
 [MIT](LICENSE) © 2026 Noah Simons.

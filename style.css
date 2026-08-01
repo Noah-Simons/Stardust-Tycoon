@@ -184,6 +184,33 @@ h2 { font-size: 1.1rem; margin-bottom: 12px; color: #bcd; }
 }
 .tip:hover { filter: brightness(1.08); }
 
+/* Cloud sync (Google sign-in) */
+.cloudRule {
+  border: none;
+  border-top: 1px solid rgba(255,255,255,0.10);
+  margin: 14px 0 10px;
+}
+.cloud {
+  display: block;
+  width: 100%;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 8px;
+  padding: 10px;
+  color: #e8ecff;
+  font-weight: 700;
+  cursor: pointer;
+}
+.cloud:hover:not(:disabled) { background: rgba(255,255,255,0.12); }
+.cloud:disabled { opacity: 0.5; cursor: not-allowed; }
+.cloudStatus {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  color: #93a4c8;
+  text-align: center;
+  min-height: 1.1em;
+}
+
 /* Prestige button */
 .prestige:hover { filter: brightness(1.1); }
 .prestige:disabled {

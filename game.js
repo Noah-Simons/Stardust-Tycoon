@@ -419,6 +419,8 @@ el.prestigeBtn.addEventListener("click", () => {
       state.clickCount = 0;
       save();
       render();
+      // Milestone: bypass the cloud push throttle so a prestige is never lost.
+      window.dispatchEvent(new Event("stardust:milestone"));
     }
   );
 });
@@ -427,6 +429,9 @@ el.prestigeBtn.addEventListener("click", () => {
 function save() {
   if (resetPending) return; // don't persist state during a reset/reload
   localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+  // Announce that state changed. cloud.js listens if it loaded; nothing here
+  // depends on it, so the game works identically with no listener.
+  window.dispatchEvent(new Event("stardust:dirty"));
 }
 
 function load() {

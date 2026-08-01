@@ -34,11 +34,13 @@ Since the game runs in a browser, most testing is manual:
 - In the PR description, say **what changed, why, and how you tested it**.
 - Confirm the game still loads with **no console errors**.
 
-## No frameworks, on purpose
+## Minimal dependencies, on purpose
 
-This game is **deliberately vanilla** — plain HTML, CSS, and JavaScript, no build step, no dependencies, no bundler.
+The game itself is **plain HTML, CSS, and JavaScript** — no build step, no bundler, no npm.
 
-> **PRs that add dependencies, frameworks, or a build step will probably be turned down.** Keeping it dependency-free is a core design decision, not an oversight. If you think a change genuinely requires it, open an issue first to discuss.
+The one exception is **Firebase** (Auth + Firestore), loaded from a CDN as an ES module for optional cross-device cloud saves. It is deliberately isolated in `cloud.js`, and the game must stay fully playable signed out, offline, and even if Firebase fails to load entirely. `game.js` never imports it — it only dispatches `stardust:dirty` and `stardust:milestone` events that `cloud.js` listens for.
+
+> **PRs that add further dependencies, frameworks, or a build step will probably be turned down.** Staying near-vanilla is a core design decision, not an oversight. If you think a change genuinely requires one, open an issue first to discuss.
 
 ## Game balance
 
