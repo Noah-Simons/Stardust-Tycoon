@@ -52,6 +52,17 @@
 
   <div id="toasts"></div>
 
-  <script src="game.js?v=1.3"></script>
+  <!-- In-game confirm modal (replaces native confirm() which can be unreliable) -->
+  <div id="modalOverlay" class="modalOverlay hidden">
+    <div class="modalBox">
+      <div id="modalMsg" class="modalMsg"></div>
+      <div class="modalBtns">
+        <button id="modalCancel" class="modalCancel">Cancel</button>
+        <button id="modalOk" class="modalOk">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="game.js?v=1.4"></script>
 </body>
 </html>
