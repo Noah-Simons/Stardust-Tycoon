@@ -220,6 +220,15 @@ function renderHUD() {
   }
 }
 
+// Lightweight update used on click: just the numbers that change per click.
+// Avoids rebuilding the shop/achievements DOM every click (that caused lag).
+function renderHUDFast() {
+  el.stardust.textContent = fmt(state.stardust) + " ✦";
+  el.totalMined.textContent = fmt(state.totalMined);
+  el.clickCount.textContent = state.clickCount;
+  el.perClick.textContent = fmt(clickPowerValue() * prestigeMult());
+}
+
 function render() {
   renderHUD();
   updateShop();
@@ -270,6 +279,7 @@ function buy(up) {
   const cost = batchCost(up, k, owned);
   state.stardust -= cost;
   state.owned[up.id] = owned + k;
+  achDirty = true; // a new purchase may have unlocked an achievement
   save();
   render();
 }
@@ -323,11 +333,29 @@ function spawnFloater(x, y, amount) {
 }
 
 // ===== Game loop =====
+// We only rebuild the shop/achievements DOM when something structural changes
+// (a new achievement unlocked, or a buy happened). Every-frame we just update text.
+let achDirty = true; // force one full render at boot
+
 function tick() {
   const gain = cps() * (1 / 10); // 10 ticks/sec
   state.stardust += gain;
   state.totalMined += gain;
+  const before = Object.keys(state.achieved).length;
   checkAchievements();
+  if (Object.keys(state.achieved).length !== before) achDirty = true;
+}
+
+function loop() {
+  tick();
+  // Lightweight per-frame update: numbers + shop button states.
+  renderHUD();
+  updateShop();
+  showToasts();
+  if (achDirty) {
+    renderAchievements();
+    achDirty = false;
+  }
 }
 
 document.getElementById("mineBtn").addEventListener("click", (e) => {
@@ -341,34 +369,54 @@ document.getElementById("mineBtn").addEventListener("click", (e) => {
   btn.classList.remove("pop");
   void btn.offsetWidth; // restart animation
   btn.classList.add("pop");
-  render();
+  renderHUDFast(); // lightweight: no full DOM rebuild, so rapid clicks stay snappy
+});
+
+// ===== In-game confirm modal (replaces native confirm()) =====
+let modalCallback = null;
+function showModal(message, onOk) {
+  document.getElementById("modalMsg").textContent = message;
+  modalCallback = onOk;
+  document.getElementById("modalOverlay").classList.remove("hidden");
+}
+function hideModal() {
+  document.getElementById("modalOverlay").classList.add("hidden");
+  modalCallback = null;
+}
+document.getElementById("modalCancel").addEventListener("click", hideModal);
+document.getElementById("modalOk").addEventListener("click", () => {
+  const cb = modalCallback;
+  hideModal();
+  if (cb) cb();
 });
 
 document.getElementById("resetBtn").addEventListener("click", () => {
-  if (!confirm("Reset ALL progress (including prestige)?")) return;
-  // Wipe the saved game and reset the in-memory state to defaults.
-  localStorage.removeItem(SAVE_KEY);
-  localStorage.removeItem("st_lastSeen");
-  Object.assign(state, defaultState());
-  // Flag so the beforeunload autosave can't restore the old data.
-  resetPending = true;
-  location.reload();
+  showModal("Reset ALL progress (including prestige)? This cannot be undone.", () => {
+    localStorage.removeItem(SAVE_KEY);
+    localStorage.removeItem("st_lastSeen");
+    Object.assign(state, defaultState());
+    resetPending = true; // so the beforeunload autosave can't restore old data
+    location.reload();
+  });
 });
 
-el.prestigeBtn.addEventListener("click", () =>{
+el.prestigeBtn.addEventListener("click", () => {
   if (!canPrestige()) {
-    alert("You need " + fmt(PRESTIGE_REQ) + " ✦ to prestige.");
+    showModal("You need " + fmt(PRESTIGE_REQ) + " ✦ to prestige. Keep mining!");
     return;
   }
   const nextPct = Math.round(0.1 * (state.prestige + 1) * 100);
-  if (confirm("Prestige now? Costs " + fmt(PRESTIGE_REQ) + " ✦ and resets stardust + upgrades, but grants +" + nextPct + "% permanent production. Total after: +" + nextPct + "%.")) {
-    state.prestige += 1;
-    state.stardust = 0;
-    state.owned = {};
-    state.clickCount = 0;
-    save();
-    render();
-  }
+  showModal(
+    "Prestige now? Costs " + fmt(PRESTIGE_REQ) + " ✦ and resets stardust + upgrades, but grants +" + nextPct + "% permanent production (total after: +" + nextPct + "%).",
+    () => {
+      state.prestige += 1;
+      state.stardust = 0;
+      state.owned = {};
+      state.clickCount = 0;
+      save();
+      render();
+    }
+  );
 });
 
 // ===== Save / load =====
@@ -410,8 +458,8 @@ load();
 applyOfflineProgress();
 buildShop();
 checkAchievements();
-render();
+render(); // full first paint
 
-setInterval(() => { tick(); render(); }, 100); // 10 fps logic
+setInterval(loop, 100); // 10 fps logic + lightweight UI refresh
 setInterval(save, 5000); // autosave
 window.addEventListener("beforeunload", save);

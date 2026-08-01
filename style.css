@@ -277,3 +277,39 @@ h2 { font-size: 1.1rem; margin-bottom: 12px; color: #bcd; }
 }
 .sound:hover { background: rgba(255,255,255,0.12); }
 header { position: relative; }
+
+/* In-game confirm modal */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+.modalOverlay.hidden { display: none; }
+.modalBox {
+  background: #1b1030;
+  border: 1px solid rgba(160,200,255,0.3);
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 420px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  text-align: center;
+}
+.modalMsg { color: #fff; font-size: 1rem; line-height: 1.5; margin-bottom: 20px; }
+.modalBtns { display: flex; gap: 12px; justify-content: center; }
+.modalBtns button {
+  padding: 10px 22px;
+  border-radius: 10px;
+  border: none;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.modalCancel { background: rgba(255,255,255,0.12); color: #fff; }
+.modalCancel:hover { background: rgba(255,255,255,0.2); }
+.modalOk { background: #ff7ad9; color: #1b1030; }
+.modalOk:hover { background: #ff9ae3; }
