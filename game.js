@@ -319,13 +319,17 @@ document.querySelectorAll("#buyQty button").forEach((b) => {
   });
 });
 
-// Floating "+N" number at click position
+// Spawn a falling yellow stardust bit from the click point.
+// It is non-selectable and non-interactive so rapid clicking never starts a
+// text-selection drag (which would flip the cursor to an I-beam and eat clicks).
 function spawnFloater(x, y, amount) {
   const clicker = document.getElementById("clicker");
   const rect = clicker.getBoundingClientRect();
   const f = document.createElement("div");
   f.className = "floater";
-  f.textContent = "+" + fmt(amount);
+  f.textContent = "✦"; // yellow stardust mote
+  const drift = (Math.random() * 44 - 22); // random sideways drift
+  f.style.setProperty("--drift", drift + "px");
   f.style.left = (x - rect.left) + "px";
   f.style.top = (y - rect.top) + "px";
   clicker.appendChild(f);
