@@ -10,6 +10,12 @@ body {
   padding: 24px;
 }
 
+/* Disable text selection globally so rapid clicking never starts a drag. */
+#game, #game * {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 #game {
   width: 100%;
   max-width: 720px;
@@ -62,6 +68,8 @@ main {
   box-shadow: 0 10px 30px rgba(90,120,255,0.4);
   transition: transform 0.05s ease;
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none; /* prevents drag-picking the button */
 }
 
 #mineBtn:active { transform: scale(0.96); }
@@ -247,19 +255,22 @@ h2 { font-size: 1.1rem; margin-bottom: 12px; color: #bcd; }
 }
 .toast.show { opacity: 1; transform: translateY(0); }
 
-/* Floating +N number */
+/* Falling yellow stardust mote (spawned on each click) */
 #clicker { position: relative; }
 .floater {
   position: absolute;
   font-weight: 800;
-  font-size: 1.4rem;
-  color: #aef;
-  text-shadow: 0 0 12px rgba(120,160,255,0.8);
-  animation: floatUp 0.9s ease-out forwards;
+  font-size: 1.5rem;
+  color: #ffd54a;
+  text-shadow: 0 0 10px rgba(255,200,60,0.9);
+  pointer-events: none;        /* never intercepts clicks */
+  user-select: none;           /* never selectable -> no I-beam drag */
+  -webkit-user-select: none;
+  animation: fall 0.9s ease-in forwards;
 }
-@keyframes floatUp {
-  0%   { transform: translate(-50%, 0); opacity: 1; }
-  100% { transform: translate(-50%, -70px); opacity: 0; }
+@keyframes fall {
+  0%   { transform: translate(-50%, 0) scale(1);   opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--drift, 0px)), 120px) scale(0.6); opacity: 0; }
 }
 
 /* Sound toggle */
@@ -274,7 +285,6 @@ h2 { font-size: 1.1rem; margin-bottom: 12px; color: #bcd; }
   font-size: 1rem;
   cursor: pointer;
   color: #fff;
-}
 .sound:hover { background: rgba(255,255,255,0.12); }
 header { position: relative; }
 
