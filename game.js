@@ -46,13 +46,23 @@ function defaultState() {
 }
 
 
-// Format big numbers nicely (k, M, B, T...)
+// Format big numbers nicely (k, M, B, T, Qa, Qi, Sx, Sp...)
 function fmt(n) {
   if (n < 1000) return Math.floor(n).toString();
-  const units = ["", "k", "M", "B", "T", "Qa", "Qi"];
+  // Standard incremental-game ladder, one entry per 10^3. Extends past Qi
+  // (10^18) so long idle runs above 10^21 don't render as oversized Qi.
+  const units = ["", "k", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc", "UDc", "DDc", "TDc", "QaDc", "QiDc"];
   let u = 0;
   while (n >= 1000 && u < units.length - 1) { n /= 1000; u++; }
-  return n.toFixed(2) + units[u];
+  // Float error at a unit boundary can leave n just under 1000 (e.g. 1e33),
+  // which toFixed(2) would render as "1000.00" with the wrong unit. Bump.
+  const s = n.toFixed(2);
+  if (s === "1000.00" && u < units.length - 1) {
+    n /= 1000;
+    u++;
+    return n.toFixed(2) + units[u];
+  }
+  return s + units[u];
 }
 
 const PRESTIGE_REQ = 1e7; // 10,000,000 stardust needed to prestige, every time
