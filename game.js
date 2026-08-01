@@ -46,13 +46,23 @@ function defaultState() {
 }
 
 
-// Format big numbers nicely (k, M, B, T...)
+// Format big numbers nicely (k, M, B, T, Qa, Qi, Sx, Sp...)
 function fmt(n) {
   if (n < 1000) return Math.floor(n).toString();
-  const units = ["", "k", "M", "B", "T", "Qa", "Qi"];
+  // Standard incremental-game ladder, one entry per 10^3. Extends past Qi
+  // (10^18) so long idle runs above 10^21 don't render as oversized Qi.
+  const units = ["", "k", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc", "UDc", "DDc", "TDc", "QaDc", "QiDc"];
   let u = 0;
   while (n >= 1000 && u < units.length - 1) { n /= 1000; u++; }
-  return n.toFixed(2) + units[u];
+  // Float error at a unit boundary can leave n just under 1000 (e.g. 1e33),
+  // which toFixed(2) would render as "1000.00" with the wrong unit. Bump.
+  const s = n.toFixed(2);
+  if (s === "1000.00" && u < units.length - 1) {
+    n /= 1000;
+    u++;
+    return n.toFixed(2) + units[u];
+  }
+  return s + units[u];
 }
 
 const PRESTIGE_REQ = 1e7; // 10,000,000 stardust needed to prestige, every time
@@ -148,7 +158,6 @@ const el = {
 const shopRefs = {};
 
 function buildShop() {
-  el.shopList.innerHTML = document.createElement("div"); // ensure container
   el.shopList.innerHTML = "";
   for (const up of UPGRADES) {
     const item = document.createElement("div");
@@ -452,14 +461,24 @@ function applyOfflineProgress() {
   const last = Number(localStorage.getItem("st_lastSeen") || 0);
   const now = Date.now();
   if (last) {
-    const secs = Math.min((now - last) / 1000, 8 * 3600);
+    // Floor elapsed time at 0 so a clock rollback (NTP correction, manual
+    // clock change, DST quirk) is a no-op instead of silently zeroing the
+    // payout. The 8h cap still applies. `gain > 0` below stays as
+    // defense-in-depth.
+    const secs = Math.max(0, Math.min((now - last) / 1000, 8 * 3600));
     const gain = cps() * secs;
     if (gain > 0) {
       state.stardust += gain;
       state.totalMined += gain;
     }
+    // Only advance the timestamp when the clock moved forward (or when it is
+    // absurdly in the future, i.e. corrupted). Writing a rolled-back `now`
+    // back here would poison st_lastSeen and pay out an accidental 8h reward
+    // on the next boot.
+    if (now > last || now < last - 8 * 3600 * 1000) localStorage.setItem("st_lastSeen", now);
+  } else {
+    localStorage.setItem("st_lastSeen", now);
   }
-  localStorage.setItem("st_lastSeen", now);
 }
 
 // ===== Boot =====
