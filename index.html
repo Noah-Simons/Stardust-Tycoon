@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Stardust Tycoon</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="game">
+    <header>
+      <h1>✨ Stardust Tycoon</h1>
+      <div id="stardust">0 ✦</div>
+      <div id="rate">0 ✦/sec</div>
+      <button id="soundBtn" class="sound" title="Toggle sound">🔊</button>
+    </header>
+
+    <main>
+      <section id="clicker">
+        <button id="mineBtn">MINE ✦</button>
+      </section>
+
+      <section id="shop">
+        <div id="buyQty">
+          <span>Buy:</span>
+          <button data-qty="1" class="active">x1</button>
+          <button data-qty="10">x10</button>
+          <button data-qty="100">x100</button>
+          <button data-qty="max">Max</button>
+        </div>
+        <h2>Upgrades</h2>
+        <div id="shopList"></div>
+      </section>
+
+      <section id="stats">
+        <h2>Stats</h2>
+        <p>Total mined: <span id="totalMined">0</span> ✦</p>
+        <p>Clicks: <span id="clickCount">0</span></p>
+        <p>Per click: <span id="perClick">1</span> ✦</p>
+        <p>Production bonus: <span id="prestigeBonus">+0% (P0)</span></p>
+        <button id="prestigeBtn" class="prestige">Prestige ↻ (next: +10%)</button>
+        <a id="tipBtn" class="tip" href="https://ko-fi.com/noahsimons" target="_blank" rel="noopener">☕ Support the dev</a>
+        <button id="resetBtn" class="reset">Reset save</button>
+      </section>
+    </main>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
