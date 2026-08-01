@@ -19,6 +19,13 @@ const UPGRADES = [
   { id: "cosmic",     name: "Cosmic Witness",        desc: "+1M ✦/sec",      baseCost: 5000000000,    cps: 1000000,   unlockAt: 100000000 },
   { id: "omniverse",  name: "Omniverse",             desc: "+10M ✦/sec",     baseCost: 50000000000,   cps: 10000000,  unlockAt: 1000000000 },
   { id: "singularity",name: "Singularity",           desc: "+100M ✦/sec",    baseCost: 500000000000,  cps: 100000000, unlockAt: 10000000000 },
+  // Click-power tiers (bigger +per click)
+  { id: "rfingers",    name: "Reinforced Fingers",    desc: "+5 per click",   baseCost: 5000,          cps: 0, clickAdd: 5,   unlockAt: 0 },
+  { id: "mfingers",    name: "Mecha Fingers",         desc: "+50 per click",  baseCost: 500000,        cps: 0, clickAdd: 50,  unlockAt: 0 },
+  // Production multipliers (+% to ALL stardust, permanent, paid in stardust)
+  { id: "amp1",        name: "Stardust Amplifier",    desc: "+5% production", baseCost: 100000,        cps: 0, mult: 0.05,   unlockAt: 0 },
+  { id: "amp2",        name: "Nebula Amplifier",      desc: "+15% production",baseCost: 5000000,       cps: 0, mult: 0.15,   unlockAt: 100000 },
+  { id: "amp3",        name: "Cosmic Amplifier",      desc: "+50% production",baseCost: 500000000,     cps: 0, mult: 0.5,    unlockAt: 10000000 },
 ];
 
 const state = {
@@ -27,6 +34,7 @@ const state = {
   clickCount: 0,
   owned: {},        // id -> count
   prestige: 0,      // number of prestiges; +0.1x production each
+  achieved: {},     // achievement id -> true (one-time claimed)
 };
 
 let buyQty = "1"; // "1" | "10" | "100" | "max"
@@ -34,7 +42,7 @@ let resetPending = false; // true briefly during a reset so autosave can't clobb
 
 // Fresh default save (used by reset).
 function defaultState() {
-  return { stardust: 0, totalMined: 0, clickCount: 0, owned: {}, prestige: 0 };
+  return { stardust: 0, totalMined: 0, clickCount: 0, owned: {}, prestige: 0, achieved: {} };
 }
 
 
@@ -49,6 +57,11 @@ function fmt(n) {
 
 const PRESTIGE_REQ = 1e7; // 10,000,000 stardust needed to prestige, every time
 function prestigeMult() { return 1 + 0.1 * state.prestige; }
+function productionMult() {
+  let m = 1;
+  for (const up of UPGRADES) if (up.mult) m += (state.owned[up.id] || 0) * up.mult;
+  return m * prestigeMult();
+}
 function canPrestige() { return state.stardust >= PRESTIGE_REQ; }
 
 function upgradeCost(up) {
@@ -78,15 +91,43 @@ function maxAffordable(up, startOwned, budget) {
 
 function cps() {
   let total = 0;
-  for (const up of UPGRADES) total += (state.owned[up.id] || 0) * up.cps;
-  return total * prestigeMult();
+  for (const up of UPGRADES) total += (state.owned[up.id] || 0) * (up.cps || 0);
+  return total * productionMult();
 }
 
-// Stardust earned per manual click = 1 + (sum of clickAdd * owned).
+// Stardust earned per manual click = (1 + clickAdd total) * productionMult.
 function clickPowerValue() {
   let p = 1;
   for (const up of UPGRADES) if (up.clickAdd) p += (state.owned[up.id] || 0) * up.clickAdd;
-  return p;
+  return p * productionMult();
+}
+
+// ===== Achievements =====
+// Each grants a one-time stardust bonus when its condition first becomes true.
+// cond(state) -> boolean. reward is added once.
+const ACHIEVEMENTS = [
+  { id: "first100",   name: "Pocket Change",       desc: "Mine 100 ✦ total",        reward: 50,       cond: s => s.totalMined >= 100 },
+  { id: "first1k",    name: "Stardust Saver",      desc: "Mine 1k ✦ total",         reward: 500,      cond: s => s.totalMined >= 1000 },
+  { id: "first1M",    name: "Millionaire",         desc: "Mine 1M ✦ total",         reward: 50000,    cond: s => s.totalMined >= 1e6 },
+  { id: "first1B",    name: "Billionaire",         desc: "Mine 1B ✦ total",         reward: 5e7,      cond: s => s.totalMined >= 1e9 },
+  { id: "clicks100",  name: "Clicker",             desc: "Click 100 times",         reward: 100,      cond: s => s.clickCount >= 100 },
+  { id: "clicks10k",  name: "Click Frenzy",        desc: "Click 10,000 times",      reward: 10000,    cond: s => s.clickCount >= 10000 },
+  { id: "drone10",    name: "Drone Fleet",         desc: "Own 10 Drones",           reward: 200,      cond: s => (s.owned.drone||0) >= 10 },
+  { id: "galaxy1",    name: "Forge Master",        desc: "Own a Galaxy Forge",      reward: 2000,     cond: s => (s.owned.galaxy||0) >= 1 },
+  { id: "prestige1",  name: "Ascended",            desc: "Prestige once",           reward: 1e6,      cond: s => s.prestige >= 1 },
+  { id: "prestige5",  name: "Cosmic Being",        desc: "Prestige 5 times",        reward: 5e7,      cond: s => s.prestige >= 5 },
+];
+
+let toastQueue = [];
+function checkAchievements() {
+  for (const a of ACHIEVEMENTS) {
+    if (!state.achieved[a.id] && a.cond(state)) {
+      state.achieved[a.id] = true;
+      state.stardust += a.reward;
+      state.totalMined += a.reward;
+      toastQueue.push("🏆 " + a.name + "  +" + fmt(a.reward) + " ✦");
+    }
+  }
 }
 
 // ===== Rendering =====
@@ -99,6 +140,7 @@ const el = {
   perClick: document.getElementById("perClick"),
   prestigeBonus: document.getElementById("prestigeBonus"),
   prestigeBtn: document.getElementById("prestigeBtn"),
+  achievementsList: document.getElementById("achievementsList"),
 };
 
 // Build the shop ONCE. After that we only mutate text/classes in place,
@@ -181,6 +223,41 @@ function renderHUD() {
 function render() {
   renderHUD();
   updateShop();
+  renderAchievements();
+  showToasts();
+}
+
+function renderAchievements() {
+  if (!el.achievementsList) return;
+  let unlocked = 0;
+  let html = "";
+  for (const a of ACHIEVEMENTS) {
+    const got = !!state.achieved[a.id];
+    if (got) unlocked++;
+    html += `<div class="ach ${got ? "got" : "locked"}" title="${a.desc}">
+      <span class="achName">${got ? "🏆" : "🔒"} ${a.name}</span>
+      <span class="achDesc">${a.desc}</span>
+      <span class="achReward">+${fmt(a.reward)} ✦</span>
+    </div>`;
+  }
+  el.achievementsList.innerHTML = `<div class="achHeader">Achievements ${unlocked}/${ACHIEVEMENTS.length}</div>` + html;
+}
+
+// Toast popups for newly-earned achievements.
+let toastEls = [];
+function showToasts() {
+  if (toastQueue.length === 0) return;
+  const wrap = document.getElementById("toasts");
+  while (toastQueue.length) {
+    const msg = toastQueue.shift();
+    const t = document.createElement("div");
+    t.className = "toast";
+    t.textContent = msg;
+    wrap.appendChild(t);
+    setTimeout(() => t.classList.add("show"), 10);
+    setTimeout(() => { t.classList.remove("show"); }, 2600);
+    setTimeout(() => t.remove(), 3100);
+  }
 }
 
 function buy(up) {
@@ -250,6 +327,7 @@ function tick() {
   const gain = cps() * (1 / 10); // 10 ticks/sec
   state.stardust += gain;
   state.totalMined += gain;
+  checkAchievements();
 }
 
 document.getElementById("mineBtn").addEventListener("click", (e) => {
@@ -331,6 +409,7 @@ function applyOfflineProgress() {
 load();
 applyOfflineProgress();
 buildShop();
+checkAchievements();
 render();
 
 setInterval(() => { tick(); render(); }, 100); // 10 fps logic
