@@ -206,7 +206,7 @@ function renderHUD() {
   el.rate.textContent = fmt(cps()) + " ✦/sec";
   el.totalMined.textContent = fmt(state.totalMined);
   el.clickCount.textContent = state.clickCount;
-  el.perClick.textContent = fmt(clickPowerValue() * prestigeMult());
+  el.perClick.textContent = fmt(clickPowerValue());
   el.prestigeBonus.textContent = "+" + Math.round((prestigeMult() - 1) * 100) + "% (P" + state.prestige + ")";
   const nextPct = Math.round(0.1 * (state.prestige + 1) * 100);
   if (canPrestige()) {
@@ -226,7 +226,7 @@ function renderHUDFast() {
   el.stardust.textContent = fmt(state.stardust) + " ✦";
   el.totalMined.textContent = fmt(state.totalMined);
   el.clickCount.textContent = state.clickCount;
-  el.perClick.textContent = fmt(clickPowerValue() * prestigeMult());
+  el.perClick.textContent = fmt(clickPowerValue());
 }
 
 function render() {
@@ -363,7 +363,7 @@ function loop() {
 }
 
 document.getElementById("mineBtn").addEventListener("click", (e) => {
-  const gain = clickPowerValue() * prestigeMult();
+  const gain = clickPowerValue();
   state.stardust += gain;
   state.totalMined += gain;
   state.clickCount++;
