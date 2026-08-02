@@ -1,5 +1,7 @@
 # Stardust Tycoon ✨
 
+![version](https://img.shields.io/github/v/release/Noah-Simons/Stardust-Tycoon?label=version)
+
 An idle/clicker game where numbers go up forever — mine stardust, automate galaxies, and prestige for permanent power.
 
 ▶️ **[Play it now](https://noah-simons.github.io/Stardust-Tycoon/)** — runs in your browser, no install.
