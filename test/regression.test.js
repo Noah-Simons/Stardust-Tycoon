@@ -1,7 +1,7 @@
 // Regression tests for Stardust Tycoon (game.js).
 //
 // Zero dependencies: uses Node's built-in `node:test` + `node:assert`.
-// Run with:  node --test test/
+// Run with:  node --test test/regression.test.js
 //
 // game.js is a browser script, so we load it inside a `new Function` wrapper
 // with a minimal DOM/localStorage/window shim and grab its internals through
@@ -56,6 +56,7 @@ function makeEl(id) {
 // Keep a record of every innerHTML write so the #11 regression can prove the
 // bogus "[object HTMLDivElement]" assignment no longer happens.
 const elCache = new Map();
+let createdElementId = 0;
 function getEl(id) {
   if (!elCache.has(id)) {
     const el = makeEl(id);
@@ -116,14 +117,26 @@ class FakeAudioContext {
 
 global.document = {
   getElementById: getEl,
-  createElement: (tag) => getEl("created:" + tag),
+  // A browser returns a new node for every createElement() call. Unique IDs
+  // keep the shim honest while retaining innerHTML-write tracking through getEl().
+  createElement: (tag) => getEl("created:" + tag + ":" + ++createdElementId),
   querySelectorAll: () => [],
 };
 global.localStorage = localStorage;
+const windowEvents = [];
+global.Event = class FakeEvent {
+  constructor(type) {
+    this.type = type;
+  }
+};
 global.window = {
   AudioContext: FakeAudioContext,
   webkitAudioContext: FakeAudioContext,
   addEventListener() {},
+  dispatchEvent(event) {
+    windowEvents.push(event.type);
+    return true;
+  },
 };
 // Keep the game's boot loop/autosave from actually running during tests.
 global.setInterval = () => 0;
@@ -154,6 +167,7 @@ beforeEach(() => {
   game.state.achieved = {};
   localStorage.clear();
   innerHTMLWrites.length = 0;
+  windowEvents.length = 0;
   fakeNow = 1_000_000_000_000;
   Date.now = () => fakeNow;
 });
@@ -268,8 +282,11 @@ test("shop: buildShop clears the list and never writes [object HTMLDivElement] (
     !innerHTMLWrites.includes("[object HTMLDivElement]"),
     "no bogus innerHTML assignment survives"
   );
-  // Shop list container holds exactly one item per upgrade.
-  assert.strictEqual(getEl("shopList").children.length, game.UPGRADES.length);
+  // Shop list container holds one distinct item per upgrade, matching real DOM
+  // createElement() semantics instead of reusing one cached test node.
+  const shopChildren = getEl("shopList").children;
+  assert.strictEqual(shopChildren.length, game.UPGRADES.length);
+  assert.strictEqual(new Set(shopChildren).size, game.UPGRADES.length);
 });
 
 // ---------------------------------------------------------------------------
@@ -302,4 +319,5 @@ test("core loop: save/load round-trips state", () => {
   assert.strictEqual(game.state.stardust, 12345);
   assert.strictEqual(game.state.totalMined, 67890);
   assert.strictEqual(game.state.owned.drone, 7);
+  assert.deepStrictEqual(windowEvents, ["stardust:dirty"]);
 });

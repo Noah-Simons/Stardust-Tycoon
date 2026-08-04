@@ -19,6 +19,17 @@ Thanks for wanting to help! This is a small, vanilla web game and we'd love help
    ```
    Then open http://localhost:8000.
 
+## Automated checks
+
+No install step or package manager is required. Run both checks from the repository root:
+
+```bash
+node --test test/regression.test.js
+node tests/verify-click-prestige.js
+```
+
+GitHub Actions runs the same commands on Node 20 and Node 22 for every push and pull request.
+
 ## Testing by hand
 
 Since the game runs in a browser, most testing is manual:
