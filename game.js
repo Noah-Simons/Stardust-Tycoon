@@ -3,6 +3,10 @@
 
 const SAVE_KEY = "stardustTycoonSave";
 
+// Bumped whenever the saved-state shape changes, so a future version can tell
+// an old save apart and migrate it. See issue #6.
+const SAVE_VERSION = 2;
+
 // Upgrade definitions. cost grows 1.15x per owned copy.
 // unlockAt = lifetime stardust (totalMined) required before it appears in the shop.
 const UPGRADES = [
@@ -29,6 +33,7 @@ const UPGRADES = [
 ];
 
 const state = {
+  version: SAVE_VERSION, // save-schema version (issue #6)
   stardust: 0,
   totalMined: 0,
   clickCount: 0,
@@ -42,7 +47,7 @@ let resetPending = false; // true briefly during a reset so autosave can't clobb
 
 // Fresh default save (used by reset).
 function defaultState() {
-  return { stardust: 0, totalMined: 0, clickCount: 0, owned: {}, prestige: 0, achieved: {} };
+  return { version: SAVE_VERSION, stardust: 0, totalMined: 0, clickCount: 0, owned: {}, prestige: 0, achieved: {} };
 }
 
 
@@ -87,16 +92,27 @@ function batchCost(up, k, startOwned) {
   return Math.ceil(total);
 }
 
-// How many copies of `up` we can afford with `budget`, starting from `startOwned`.
+// How many copies of `up` we can afford with `budget`, starting from
+// `startOwned`. Closed-form (issue #4) instead of a stepwise loop:
+//
+//   sum_{i=0}^{k-1} base * 1.15^(startOwned+i)  =  base * 1.15^startOwned * (1.15^k - 1) / 0.15
+//
+// Solve for the largest k with cost <= budget. r = 1.15, A = base*r^startOwned.
+//   cost(k) = A * (r^k - 1) / (r - 1)  <=  budget
+//   =>  r^k <= 1 + budget*(r-1)/A
+//   =>  k <= log_r(1 + budget*(r-1)/A)
+// Edge cases: budget <= 0 -> 0; A == 0 (baseCost 0) -> 0.
+const GROWTH = 1.15;
 function maxAffordable(up, startOwned, budget) {
-  let k = 0, cost = 0;
-  let mult = Math.pow(1.15, startOwned);
-  while (k < 100000) {
-    const next = up.baseCost * mult;
-    if (cost + next > budget) break;
-    cost += next; mult *= 1.15; k++;
-  }
-  return { k, cost: Math.ceil(cost) };
+  if (budget <= 0 || up.baseCost <= 0) return { k: 0, cost: 0 };
+  const A = up.baseCost * Math.pow(GROWTH, startOwned);
+  const ratio = 1 + (budget * (GROWTH - 1)) / A;
+  if (ratio <= 1) return { k: 0, cost: 0 };
+  let k = Math.floor(Math.log(ratio) / Math.log(GROWTH));
+  if (k < 0) k = 0;
+  // Guard against float error: trim any copies we can't quite afford.
+  while (k > 0 && batchCost(up, k, startOwned) > budget) k--;
+  return { k, cost: batchCost(up, k, startOwned) };
 }
 
 function cps() {
@@ -371,18 +387,40 @@ function loop() {
   }
 }
 
-document.getElementById("mineBtn").addEventListener("click", (e) => {
+// Core mining action. `x`/`y` are viewport coords for the floating "+N" mote;
+// if omitted (keyboard mining) the mote spawns at the center of the clicker.
+function doMine(x, y) {
   const gain = clickPowerValue();
   state.stardust += gain;
   state.totalMined += gain;
   state.clickCount++;
   playClick();
-  spawnFloater(e.clientX, e.clientY, gain);
+  const clicker = document.getElementById("clicker");
+  const rect = clicker.getBoundingClientRect();
+  if (x === undefined || y === undefined) {
+    x = rect.left + rect.width / 2;
+    y = rect.top + rect.height / 2;
+  }
+  spawnFloater(x, y, gain);
   const btn = document.getElementById("mineBtn");
   btn.classList.remove("pop");
   void btn.offsetWidth; // restart animation
   btn.classList.add("pop");
   renderHUDFast(); // lightweight: no full DOM rebuild, so rapid clicks stay snappy
+}
+
+document.getElementById("mineBtn").addEventListener("click", (e) => {
+  doMine(e.clientX, e.clientY);
+});
+
+// Keyboard mining (issue #8): Space / Enter triggers a mine. Ignored while
+// focus is in a button or input so it never double-fires the clicked button.
+document.addEventListener("keydown", (e) => {
+  if (e.code !== "Space" && e.code !== "Enter") return;
+  const t = e.target;
+  if (t && (t.tagName === "BUTTON" || t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+  e.preventDefault();
+  doMine();
 });
 
 // ===== In-game confirm modal (replaces native confirm()) =====
@@ -425,7 +463,9 @@ el.prestigeBtn.addEventListener("click", () => {
       state.prestige += 1;
       state.stardust = 0;
       state.owned = {};
-      state.clickCount = 0;
+      // NOTE: clickCount is intentionally preserved across prestige (issue #3)
+      // so lifetime click achievements (Clicker / Click Frenzy) are not wiped
+      // on every reset.
       save();
       render();
       // Milestone: bypass the cloud push throttle so a prestige is never lost.

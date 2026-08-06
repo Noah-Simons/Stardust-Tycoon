@@ -118,12 +118,14 @@ global.document = {
   getElementById: getEl,
   createElement: (tag) => getEl("created:" + tag),
   querySelectorAll: () => [],
+  addEventListener() {},
 };
 global.localStorage = localStorage;
 global.window = {
   AudioContext: FakeAudioContext,
   webkitAudioContext: FakeAudioContext,
   addEventListener() {},
+  dispatchEvent() {},
 };
 // Keep the game's boot loop/autosave from actually running during tests.
 global.setInterval = () => 0;
@@ -136,7 +138,7 @@ const gamePath = path.join(__dirname, "..", "game.js");
 const src = fs.readFileSync(gamePath, "utf8");
 const footer =
   "\n;module.exports = { fmt, applyOfflineProgress, buildShop, buy, tick, loop, save, load, " +
-  "state, UPGRADES, cps, productionMult, maxAffordable, batchCost, defaultState, SAVE_KEY, shopRefs };";
+  "state, UPGRADES, cps, productionMult, maxAffordable, batchCost, defaultState, SAVE_KEY, SAVE_VERSION, shopRefs };";
 
 const mod = { exports: {} };
 // eslint-disable-next-line no-new-func
@@ -270,6 +272,78 @@ test("shop: buildShop clears the list and never writes [object HTMLDivElement] (
   );
   // Shop list container holds exactly one item per upgrade.
   assert.strictEqual(getEl("shopList").children.length, game.UPGRADES.length);
+});
+
+// ---------------------------------------------------------------------------
+// #4 — maxAffordable() closed-form formula
+// ---------------------------------------------------------------------------
+
+test("#4: maxAffordable returns exactly affordable count (closed form)", () => {
+  const drone = game.UPGRADES[0]; // baseCost 15, growth 1.15
+  // Afford exactly 1 copy (cost 15).
+  let r = game.maxAffordable(drone, 0, 15);
+  assert.strictEqual(r.k, 1);
+  assert.strictEqual(r.cost, 15);
+  // Just under one copy -> 0.
+  r = game.maxAffordable(drone, 0, 14);
+  assert.strictEqual(r.k, 0);
+  // Afford 2 copies: 15 + 15*1.15 = 32.25 -> ceil 33.
+  r = game.maxAffordable(drone, 0, 33);
+  assert.strictEqual(r.k, 2);
+  assert.strictEqual(r.cost, 33);
+});
+
+test("#4: maxAffordable agrees with batchCost and never overspends", () => {
+  const drone = game.UPGRADES[0];
+  for (const budget of [15, 100, 1000, 1e6, 1e9, 5e12]) {
+    const r = game.maxAffordable(drone, 0, budget);
+    assert.ok(r.k >= 0, "k non-negative");
+    assert.ok(r.cost <= budget + 1e-6, `cost ${r.cost} must not exceed budget ${budget}`);
+    // One more copy must NOT be affordable.
+    if (r.k > 0) {
+      const next = game.batchCost(drone, r.k + 1, 0);
+      assert.ok(next > budget, "k+1 must be unaffordable");
+    }
+  }
+});
+
+test("#4: maxAffordable accounts for an existing startOwned count", () => {
+  const drone = game.UPGRADES[0];
+  // Owning 5 copies makes each *additional* copy pricier, so the same budget
+  // buys FEWER additional copies when starting from 5 than from 0.
+  const from5 = game.maxAffordable(drone, 5, 1e4);
+  const from0 = game.maxAffordable(drone, 0, 1e4);
+  assert.ok(from5.k <= from0.k, "starting higher owned must not buy more");
+  // But total cost of from5 copies (from owned 5) must still be <= budget.
+  assert.ok(from5.cost <= 1e4 + 1e-6, "from5 must stay within budget");
+});
+
+test("#4: maxAffordable returns 0 for non-positive budget", () => {
+  const drone = game.UPGRADES[0];
+  assert.strictEqual(game.maxAffordable(drone, 0, 0).k, 0);
+  assert.strictEqual(game.maxAffordable(drone, 0, -50).k, 0);
+});
+
+// ---------------------------------------------------------------------------
+// #6 — save is stamped with a schema version
+// ---------------------------------------------------------------------------
+
+test("#6: a fresh save carries a version stamp", () => {
+  Object.assign(game.state, game.defaultState());
+  assert.strictEqual(typeof game.state.version, "number");
+  assert.ok(game.state.version >= 1);
+});
+
+test("#6: save/load round-trips the version field", () => {
+  Object.assign(game.state, game.defaultState());
+  game.state.version = game.SAVE_VERSION;
+  game.state.stardust = 12345;
+  game.save();
+  Object.assign(game.state, game.defaultState()); // wipe (resets version too)
+  assert.notStrictEqual(game.state.stardust, 12345);
+  game.load();
+  assert.strictEqual(game.state.version, game.SAVE_VERSION);
+  assert.strictEqual(game.state.stardust, 12345);
 });
 
 // ---------------------------------------------------------------------------

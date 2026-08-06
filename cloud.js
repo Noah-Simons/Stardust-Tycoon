@@ -105,8 +105,8 @@ try {
 function snapshot() {
   const out = {};
   for (const k of CLOUD_KEYS) {
-    // Firestore rejects undefined outright. state.version does not exist yet
-    // (issue #6), so it must be skipped rather than written as undefined.
+    // Firestore rejects undefined. (state.version always exists now — see #6 —
+    // but other fields may be absent on a corrupt/old save, so keep the guard.)
     if (state[k] !== undefined) out[k] = state[k];
   }
   out.updatedAt = Date.now();

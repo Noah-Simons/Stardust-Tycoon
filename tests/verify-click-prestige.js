@@ -53,6 +53,7 @@ const documentStub = {
   getElementById(id) { return (byId[id] = byId[id] || makeEl()); },
   createElement() { return makeEl(); },
   querySelectorAll() { return []; },
+  addEventListener() {},
 };
 
 const storage = {};
